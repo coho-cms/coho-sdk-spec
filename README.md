@@ -50,7 +50,7 @@ Each file is one request to the delivery API and its answer, recorded from the s
 - `path` is relative to the project's base URL, `…/v1/projects/{project}`. Compare the query as a set: an SDK may send the same parameters in another order.
 - `auth` is `key` for the project's delivery key, `none` for no `Authorization` header, and `other-key` for a valid key that grants a different project.
 - `etag` says whether the response carried one. The value is not recorded, because it changes every time the content is rebuilt; a replaying SDK can make up its own.
-- The content is a type, `article`, with a localized `title`, a `body`, an integer `rank`, and a `related` reference. Three entries, `chain-1` to `chain-3`, link in a loop, and `chain-2` also links to an entry that does not exist. Four more, `entry-1` to `entry-3` and `entry-fr`, carry translated titles. A second type, `notice`, declares an integer `priority` and a text `message`, and has no entries.
+- The content is a type, `article`, with a localized `title`, a `body`, an integer `rank`, and a `related` reference. Three entries, `chain-1` to `chain-3`, link in a loop, and `chain-2` also links to an entry that does not exist. Four more, `entry-1` to `entry-3` and `entry-fr`, carry translated titles. A second type, `notice`, declares an integer `priority` and a text `message`, and has no entries. A third, `figure`, has asset fields: `image` (images only), `poster` and a `gallery` list. `figure-1` links a JPEG with a focal point, an SVG, a PDF, and an asset that does not exist, in `poster` and in `gallery`.
 
 | Recording | What it shows |
 |---|---|
@@ -60,6 +60,7 @@ Each file is one request to the delivery API and its answer, recorded from the s
 | `entries-ordered` | A page ordered by `-rank`, with more to come |
 | `entries-fr` | Every entry projected to `fr-FR`, where most titles are untranslated and so absent |
 | `entries-empty-type` | A type with no entries, ordered by its declared field: an empty page, not a refusal |
+| `entry-with-assets` | Assets embedded (delivery 2.1.0): an image with `imageUrl`, an SVG and a PDF without one, a missing asset as `null` in `poster` and left out of `gallery`, and the `warnings` that name it. The project id in URLs is `{project}` |
 | `entry-not-found`, `ref-not-found`, `invalid-query`, `key-required`, `project-not-found` | The refusals |
 
 ## Type model fixtures
