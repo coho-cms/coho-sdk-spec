@@ -7,7 +7,8 @@ type-model/
 ├── type-model.schema.json   JSON Schema for the type model
 └── fixtures/
     ├── cli-next-blog.json   the type model of the cli-next-blog sample
-    └── delivery-fixture.json   the type model of the delivery recordings' content
+    ├── delivery-fixture.json   the type model of the delivery recordings' content
+    └── assets.json          asset fields, with number, json and a repeater
 delivery/
 └── recordings/              what the delivery API answered to a fixed set of requests
 ```
@@ -24,6 +25,7 @@ A language-neutral description of one branch's or tag's content types. Code gene
 - **Optionality comes from `presence` alone.** `always` means delivery always includes the field; `maybe` means it can be absent. A localized field is `maybe` even when required, because delivery leaves it out wherever the requested locale has no translation.
 - **Choice values are open.** Content can hold a value added after the file was produced. Generated code must accept an unknown value and keep it, not fail: in TypeScript, `'a' | 'b' | (string & {})`; elsewhere, an explicit unknown member carrying the raw value.
 - **References name types in the same file.** Every slug in a reference field's `of` is a key of `types`. An empty `of` means the link points at an entry whose type this branch or tag does not have; generate it as an untyped entry.
+- **Asset fields** (`kind: asset`, since 1.1) hold files: delivery embeds each asset as an object (`id`, `title`, `alt`, `focalPoint`, `file`, `url`, and for raster images `imageUrl`), never as a link to follow. `many` makes it a list. `accept` lists the media types a linked file may be, or family wildcards such as `image/*`, and is empty for any. **A single asset field is nullable whatever its `presence`**: an asset deleted on the branch or tag is delivered as `null`. In a list, a deleted asset is left out, never `null`. A field whose `accept` names only raster images (`image/png`, `image/jpeg`, `image/gif`, `image/webp`, `image/avif`, `image/heic`) may be typed as an image that always has dimensions; `image/*` includes SVG, which has none.
 - **Unknown field kinds are untyped.** If `kind` is one you do not know, emit the field as untyped and print a warning. Never fail.
 - **Print `warnings`.** When present, each one names a type and field that need attention.
 - **Fields hidden from the API are already gone.** Do not look for them.
