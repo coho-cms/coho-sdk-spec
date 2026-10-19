@@ -8,7 +8,8 @@ type-model/
 └── fixtures/
     ├── cli-next-blog.json   the type model of the cli-next-blog sample
     ├── delivery-fixture.json   the type model of the delivery recordings' content
-    └── assets.json          asset fields, with number, json and a repeater
+    ├── assets.json          asset fields, with number, json and a repeater
+    └── repeaters.json       component types, and repeaters that hold them
 delivery/
 └── recordings/              what the delivery API answered to a fixed set of requests
 ```
@@ -26,6 +27,7 @@ A language-neutral description of one branch's or tag's content types. Code gene
 - **Choice values are open.** Content can hold a value added after the file was produced. Generated code must accept an unknown value and keep it, not fail: in TypeScript, `'a' | 'b' | (string & {})`; elsewhere, an explicit unknown member carrying the raw value.
 - **References name types in the same file.** Every slug in a reference field's `of` is a key of `types`. An empty `of` means the link points at an entry whose type this branch or tag does not have; generate it as an untyped entry.
 - **Asset fields** (`kind: asset`, since 1.1) hold files: delivery embeds each asset as an object (`id`, `title`, `alt`, `focalPoint`, `file`, `url`, and for raster images `imageUrl`), never as a link to follow. `many` makes it a list. `accept` lists the media types a linked file may be, or family wildcards such as `image/*`, and is empty for any. **A single asset field is nullable whatever its `presence`**: an asset deleted on the branch or tag is delivered as `null`. In a list, a deleted asset is left out, never `null`. A field whose `accept` names only raster images (`image/png`, `image/jpeg`, `image/gif`, `image/webp`, `image/avif`, `image/heic`) may be typed as an image that always has dimensions; `image/*` includes SVG, which has none.
+- **Repeaters hold component types** (since 1.2). `components` is keyed by slug, the same shape as `types`, and every slug in a repeater's `of` is a key of it. Each item carries `_id`, its stable identity, and `_type`, the component's slug: discriminate on `_type`. Content can hold an item of a component added after the file was produced. Leave such an item out of the list, and report it, rather than type it as something it is not; the TypeScript runtime does this from the generated `shape`. An empty `of` means no component type is on this branch or tag; generate items as untyped objects with `_id`. Before 1.2 there is no `components`, and items are untyped.
 - **Unknown field kinds are untyped.** If `kind` is one you do not know, emit the field as untyped and print a warning. Never fail.
 - **Print `warnings`.** When present, each one names a type and field that need attention.
 - **Fields hidden from the API are already gone.** Do not look for them.
@@ -34,7 +36,7 @@ A language-neutral description of one branch's or tag's content types. Code gene
 
 The type model is two-space-indented JSON with `"key": value`, one array element per line, `[]` and `{}` when empty, and a trailing newline: the layout of `JSON.stringify(model, null, 2)`. Tooling that writes the file in that layout produces no diff.
 
-`source.schemaHash` is the SHA-256 of `types`, serialized compactly in the order given. Equal hashes mean equal types, whichever branch or tag they came from.
+`source.schemaHash` is the SHA-256 of `types`, serialized compactly in the order given, or of `{"types": …, "components": …}` when `components` is not empty. Equal hashes mean equal types, whichever branch or tag they came from.
 
 ## Delivery recordings
 
@@ -50,7 +52,7 @@ Each file is one request to the delivery API and its answer, recorded from the s
 - `path` is relative to the project's base URL, `…/v1/projects/{project}`. Compare the query as a set: an SDK may send the same parameters in another order.
 - `auth` is `key` for the project's delivery key, `none` for no `Authorization` header, and `other-key` for a valid key that grants a different project.
 - `etag` says whether the response carried one. The value is not recorded, because it changes every time the content is rebuilt; a replaying SDK can make up its own.
-- The content is a type, `article`, with a localized `title`, a `body`, an integer `rank`, and a `related` reference. Three entries, `chain-1` to `chain-3`, link in a loop, and `chain-2` also links to an entry that does not exist. Four more, `entry-1` to `entry-3` and `entry-fr`, carry translated titles. A second type, `notice`, declares an integer `priority` and a text `message`, and has no entries. A third, `figure`, has asset fields: `image` (images only), `poster` and a `gallery` list. `figure-1` links a JPEG with a focal point, an SVG, a PDF, and an asset that does not exist, in `poster` and in `gallery`.
+- The content is a type, `article`, with a localized `title`, a `body`, an integer `rank`, and a `related` reference. Three entries, `chain-1` to `chain-3`, link in a loop, and `chain-2` also links to an entry that does not exist. Four more, `entry-1` to `entry-3` and `entry-fr`, carry translated titles. A second type, `notice`, declares an integer `priority` and a text `message`, and has no entries. A third, `figure`, has asset fields: `image` (images only), `poster` and a `gallery` list. `figure-1` links a JPEG with a focal point, an SVG, a PDF, and an asset that does not exist, in `poster` and in `gallery`. `figure` also has `sources`, a repeater of the component type `citation`, and `figure-2` holds two citations.
 
 | Recording | What it shows |
 |---|---|
@@ -61,6 +63,7 @@ Each file is one request to the delivery API and its answer, recorded from the s
 | `entries-fr` | Every entry projected to `fr-FR`, where most titles are untranslated and so absent |
 | `entries-empty-type` | A type with no entries, ordered by its declared field: an empty page, not a refusal |
 | `entry-with-assets` | Assets embedded (delivery 2.1.0): an image with `imageUrl`, an SVG and a PDF without one, a missing asset as `null` in `poster` and left out of `gallery`, and the `warnings` that name it. The project id in URLs is `{project}` |
+| `entry-with-repeater` | Repeater items as stored: each with its `_id` and `_type`, the second's `_type` filled in by the server on write |
 | `entry-not-found`, `ref-not-found`, `invalid-query`, `key-required`, `project-not-found` | The refusals |
 
 ## Type model fixtures
@@ -68,9 +71,9 @@ Each file is one request to the delivery API and its answer, recorded from the s
 | Fixture | Covers |
 |---|---|
 | `cli-next-blog` | text, longText (plain and markdown), choice, multichoice, datetime, integer, boolean, localized fields, single and many references, and a type that references itself |
-| `delivery-fixture` | The types of the delivery recordings' content, `article` and `notice`, so a generator's output can be run against the recordings |
-
-Still to come: a fixture with `number`, `json` and a repeater.
+| `delivery-fixture` | The types of the delivery recordings' content, `article`, `notice` and `figure`, and the component `citation`, so a generator's output can be run against the recordings |
+| `assets` | asset fields (single and many, image-only and any file), `number`, `json`, and a repeater whose components are not on the tag |
+| `repeaters` | component types (1.2): a single-component repeater of `citation`, and a required repeater holding two components and one not on the tag |
 
 ## License
 
