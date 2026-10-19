@@ -10,7 +10,8 @@ type-model/
     ├── delivery-fixture.json   the type model of the delivery recordings' content
     ├── assets.json          asset fields, with number, json and a repeater
     ├── repeaters.json       component types, and repeaters that hold them
-    └── inheritance.json     types that extend others, abstract ones, and links to a base type
+    ├── inheritance.json     types that extend others, abstract ones, and links to a base type
+    └── traits.json          groups of fields that types take
 delivery/
 └── recordings/              what the delivery API answered to a fixed set of requests
 ```
@@ -30,6 +31,7 @@ A language-neutral description of one branch's or tag's content types. Code gene
 - **Asset fields** (`kind: asset`, since 1.1) hold files: delivery embeds each asset as an object (`id`, `title`, `alt`, `focalPoint`, `file`, `url`, and for raster images `imageUrl`), never as a link to follow. `many` makes it a list. `accept` lists the media types a linked file may be, or family wildcards such as `image/*`, and is empty for any. **A single asset field is nullable whatever its `presence`**: an asset deleted on the branch or tag is delivered as `null`. In a list, a deleted asset is left out, never `null`. A field whose `accept` names only raster images (`image/png`, `image/jpeg`, `image/gif`, `image/webp`, `image/avif`, `image/heic`) may be typed as an image that always has dimensions; `image/*` includes SVG, which has none.
 - **Repeaters hold component types** (since 1.2). `components` is keyed by slug, the same shape as `types`, and every slug in a repeater's `of` is a key of it. Each item carries `_id`, its stable identity, and `_type`, the component's slug: discriminate on `_type`. Content can hold an item of a component added after the file was produced. Leave such an item out of the list, and report it, rather than type it as something it is not; the TypeScript runtime does this from the generated `shape`. An empty `of` means no component type is on this branch or tag; generate items as untyped objects with `_id`. Before 1.2 there is no `components`, and items are untyped.
 - **Types extend types** (since 1.3). A type with a parent names it in `extends`, a key of the same map (`types` or `components`); `abstract: true` marks a type no entry is of itself, only its descendants. A type's `fields` already include everything it inherits, so a generator that ignores `extends` stays correct. A field it reaches exactly as its parent has it carries `inherited: true`, for a language that declares it on the parent alone; one the type tightens (a narrower `values`, `of` or `max`, or made required) does not. **Delivery lists a type's descendants with it**: `?type=page` returns every service page and landing page too, each with its own `_type`, so a read or a link of a base type should be typed as any of the concrete types in its family. A reference or repeater whose `of` names a base type holds its descendants too.
+- **Types take traits** (since 1.4). A trait is a named group of fields, in the top-level `traits` map; it is never a type, so no entry is of one and no `of` names one. A type lists every trait it has, its ancestors' first, in `traits`, and already has their fields in its own `fields`, each marked `trait` and as the type has it, which may be tighter than the trait's own. A generator that ignores traits stays correct. One that reads them may declare each trait once, `interface Seo`, and declare that every type with it has it, so code written against a trait accepts any entry that has one.
 - **Unknown field kinds are untyped.** If `kind` is one you do not know, emit the field as untyped and print a warning. Never fail.
 - **Print `warnings`.** When present, each one names a type and field that need attention.
 - **Fields hidden from the API are already gone.** Do not look for them.
@@ -76,6 +78,7 @@ Each file is one request to the delivery API and its answer, recorded from the s
 | `delivery-fixture` | The types of the delivery recordings' content, `article`, `notice` and `figure`, and the component `citation`, so a generator's output can be run against the recordings |
 | `assets` | asset fields (single and many, image-only and any file), `number`, `json`, and a repeater whose components are not on the tag |
 | `repeaters` | component types (1.2): a single-component repeater of `citation`, and a required repeater holding two components and one not on the tag |
+| `traits` | traits (1.4): `seo` taken by `page` and inherited by `article`, which tightens its meta title, and `publishing` and `socialCard` taken by `article`, `socialCard` by an unrelated `person` too |
 | `inheritance` | type inheritance (1.3): an abstract `page`, `servicePage` and `landingPage` extending it, `premiumService` extending `servicePage` with a narrower choice, a `menu` linking to `page` and to `servicePage`, and an abstract component `block` with two components extending it, held by a repeater of `block` |
 
 ## License
